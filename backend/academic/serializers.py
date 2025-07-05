@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.db.models import Count
+from django.utils import timezone
 from .models import Course, CourseEnrollment, StudyGroup, StudyGroupMember
 from users.serializers import UserSerializer, InstitutionSerializer
+from users.models import Institution
 
 User = get_user_model()
 
@@ -120,6 +122,16 @@ class CourseCreateSerializer(serializers.ModelSerializer):
             'max_enrollment', 'enrollment_open'
         ]
     
+    def validate_course_code(self, value):
+        """Convert course code to uppercase"""
+        return value.upper() if value else value
+    
+    def validate_year(self, value):
+        """Validate year is not in the past for new courses"""
+        if value < timezone.now().year:
+            raise serializers.ValidationError("Cannot create courses for past years.")
+        return value
+    
     def validate(self, attrs):
         instructor_id = attrs.get('instructor_id')
         institution_id = attrs.get('institution_id')
@@ -132,10 +144,18 @@ class CourseCreateSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(
                         "Instructor must belong to the same institution as the course"
                     )
+                if instructor.profile.role not in ['faculty', 'staff']:
+                    raise serializers.ValidationError(
+                        "Only faculty and staff can be assigned as instructors"
+                    )
             else:
                 raise serializers.ValidationError("Instructor must have a valid profile")
         except User.DoesNotExist:
             raise serializers.ValidationError("Invalid instructor")
+        
+        # Convert course_code to uppercase
+        if 'course_code' in attrs:
+            attrs['course_code'] = attrs['course_code'].upper()
         
         return attrs
     
@@ -149,6 +169,68 @@ class CourseCreateSerializer(serializers.ModelSerializer):
             **validated_data
         )
         return course
+
+
+class CourseUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating courses"""
+    
+    class Meta:
+        model = Course
+        fields = [
+            'course_code', 'course_name', 'semester', 'year',
+            'description', 'max_enrollment', 'enrollment_open', 'is_active'
+        ]
+    
+    def validate_course_code(self, value):
+        """Convert course code to uppercase"""
+        return value.upper() if value else value
+    
+    def validate(self, attrs):
+        # Convert course_code to uppercase
+        if 'course_code' in attrs:
+            attrs['course_code'] = attrs['course_code'].upper()
+        return attrs
+
+
+class CourseEnrollmentCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating course enrollments"""
+    
+    class Meta:
+        model = CourseEnrollment
+        fields = ['user', 'course', 'role']
+    
+    def validate(self, attrs):
+        user = attrs.get('user')
+        course = attrs.get('course')
+        role = attrs.get('role')
+        
+        if user and course:
+            # Check if user belongs to same institution
+            if hasattr(user, 'profile'):
+                if user.profile.institution != course.institution:
+                    raise serializers.ValidationError(
+                        'User and course must belong to the same institution.'
+                    )
+            
+            # Check enrollment limits for new enrollments
+            if not course.can_enroll(user):
+                if course.is_enrollment_full():
+                    raise serializers.ValidationError('Course enrollment is full.')
+                elif not course.enrollment_open:
+                    raise serializers.ValidationError('Course enrollment is closed.')
+                elif not course.is_active:
+                    raise serializers.ValidationError('Course is not active.')
+                else:
+                    raise serializers.ValidationError('User cannot enroll in this course.')
+            
+            # Validate role permissions
+            if role in ['ta', 'instructor'] and hasattr(user, 'profile'):
+                if user.profile.role not in ['faculty', 'staff']:
+                    raise serializers.ValidationError(
+                        'Only faculty and staff can be assigned as TAs or instructors.'
+                    )
+        
+        return attrs
 
 
 class CourseEnrollmentSerializer(serializers.ModelSerializer):
@@ -300,6 +382,70 @@ class StudyGroupDetailSerializer(serializers.ModelSerializer):
         return False
 
 
+class CourseSearchSerializer(serializers.Serializer):
+    """Serializer for course search parameters"""
+    query = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    semester = serializers.ChoiceField(
+        choices=[('', 'All Semesters')] + Course.SEMESTER_CHOICES,
+        required=False,
+        allow_blank=True
+    )
+    year = serializers.IntegerField(required=False, allow_null=True)
+    instructor = serializers.IntegerField(required=False, allow_null=True)
+    enrollment_open = serializers.BooleanField(required=False)
+    my_courses = serializers.BooleanField(required=False)
+    
+    def validate_instructor(self, value):
+        """Validate instructor exists and has proper role"""
+        if value is not None:
+            try:
+                instructor = User.objects.get(id=value)
+                if hasattr(instructor, 'profile'):
+                    if instructor.profile.role not in ['faculty', 'staff']:
+                        raise serializers.ValidationError(
+                            "Selected user is not an instructor."
+                        )
+                else:
+                    raise serializers.ValidationError("Invalid instructor.")
+            except User.DoesNotExist:
+                raise serializers.ValidationError("Instructor does not exist.")
+        return value
+
+
+class StudyGroupSearchSerializer(serializers.Serializer):
+    """Serializer for study group search parameters"""
+    query = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    course = serializers.IntegerField(required=False, allow_null=True)
+    is_private = serializers.ChoiceField(
+        choices=[('', 'All'), ('False', 'Public'), ('True', 'Private')],
+        required=False,
+        allow_blank=True
+    )
+    meeting_frequency = serializers.ChoiceField(
+        choices=[('', 'Any Frequency')] + StudyGroup._meta.get_field('meeting_frequency').choices,
+        required=False,
+        allow_blank=True
+    )
+    my_groups = serializers.BooleanField(required=False)
+    
+    def validate_course(self, value):
+        """Validate course exists and is active"""
+        if value is not None:
+            try:
+                course = Course.objects.get(id=value, is_active=True)
+                request = self.context.get('request')
+                if request and request.user.is_authenticated:
+                    # Check if user belongs to same institution
+                    if hasattr(request.user, 'profile'):
+                        if request.user.profile.institution != course.institution:
+                            raise serializers.ValidationError(
+                                "Course does not belong to your institution."
+                            )
+            except Course.DoesNotExist:
+                raise serializers.ValidationError("Course does not exist or is not active.")
+        return value
+
+
 class StudyGroupCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating study groups"""
     course_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
@@ -310,6 +456,12 @@ class StudyGroupCreateSerializer(serializers.ModelSerializer):
             'name', 'description', 'course_id', 'max_members',
             'is_private', 'meeting_location', 'meeting_time', 'meeting_frequency'
         ]
+    
+    def validate_meeting_time(self, value):
+        """Validate meeting time is not in the past for new groups"""
+        if value and value < timezone.now():
+            raise serializers.ValidationError("Meeting time cannot be in the past.")
+        return value
     
     def validate_course_id(self, value):
         if value is not None:
@@ -336,29 +488,38 @@ class StudyGroupCreateSerializer(serializers.ModelSerializer):
         return study_group
 
 
-class JoinStudyGroupSerializer(serializers.Serializer):
-    """Serializer for joining study groups"""
-    message = serializers.CharField(max_length=500, required=False, allow_blank=True)
+class StudyGroupUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating study groups"""
+    
+    class Meta:
+        model = StudyGroup
+        fields = [
+            'name', 'description', 'max_members', 'is_private',
+            'meeting_location', 'meeting_time', 'meeting_frequency', 'is_active'
+        ]
+    
+    def validate_meeting_time(self, value):
+        """Validate meeting time is not in the past"""
+        if value and value < timezone.now():
+            raise serializers.ValidationError("Meeting time cannot be in the past.")
+        return value
+
+
+class StudyGroupMemberUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating study group member roles"""
+    
+    class Meta:
+        model = StudyGroupMember
+        fields = ['role']
     
     def validate(self, attrs):
         request = self.context.get('request')
-        study_group = self.context.get('study_group')
-        
-        if request and request.user.is_authenticated and study_group:
-            if not study_group.can_join(request.user):
-                if study_group.is_full():
-                    raise serializers.ValidationError("Study group is full")
-                elif not study_group.is_active:
-                    raise serializers.ValidationError("Study group is not active")
-                else:
-                    raise serializers.ValidationError("Cannot join this study group")
-            
-            # Require message for private groups
-            if study_group.is_private and not attrs.get('message'):
+        if request and self.instance and self.instance.group:
+            # Only allow role changes if current user is a moderator
+            if not self.instance.group.is_moderator(request.user):
                 raise serializers.ValidationError(
-                    "Message is required for private study groups"
+                    "Only moderators can change member roles."
                 )
-        
         return attrs
 
 
@@ -451,5 +612,41 @@ class BulkEnrollmentSerializer(serializers.Serializer):
                     raise serializers.ValidationError(
                         f"Cannot assign {role} role to students"
                     )
+        
+        return attrs
+
+
+class JoinStudyGroupSerializer(serializers.Serializer):
+    """Serializer for joining study groups"""
+    message = serializers.CharField(
+        max_length=500,
+        required=False,
+        allow_blank=True,
+        help_text='Optional message to group moderators'
+    )
+    
+    def validate(self, attrs):
+        request = self.context.get('request')
+        study_group = self.context.get('study_group')
+        
+        if request and study_group:
+            # Make message required for private groups
+            if study_group.is_private and not attrs.get('message'):
+                raise serializers.ValidationError({
+                    'message': 'Message is required for private groups'
+                })
+            
+            # Check if user can join
+            if not study_group.can_join(request.user):
+                if study_group.is_full():
+                    raise serializers.ValidationError('Study group is full.')
+                elif not study_group.is_active:
+                    raise serializers.ValidationError('Study group is not active.')
+                elif StudyGroupMember.objects.filter(
+                    group=study_group, user=request.user, is_active=True
+                ).exists():
+                    raise serializers.ValidationError('You are already a member of this study group.')
+                else:
+                    raise serializers.ValidationError('You cannot join this study group.')
         
         return attrs

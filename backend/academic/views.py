@@ -14,9 +14,9 @@ from .serializers import (
     CourseEnrollmentSerializer, EnrollInCourseSerializer, BulkEnrollmentSerializer,
     StudyGroupListSerializer, StudyGroupDetailSerializer, StudyGroupCreateSerializer,
     StudyGroupMemberSerializer, JoinStudyGroupSerializer,
-    AcademicDashboardSerializer, CourseStatsSerializer, StudyGroupStatsSerializer
+    AcademicDashboardSerializer, CourseStatsSerializer, StudyGroupStatsSerializer,
+    CourseSearchSerializer, StudyGroupSearchSerializer
 )
-from .forms import CourseSearchForm, StudyGroupSearchForm
 
 User = get_user_model()
 
