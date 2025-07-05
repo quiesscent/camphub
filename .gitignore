@@ -67,8 +67,7 @@ celerybeat.pid
 # Migrations (optional: include if you don't want to track them until stable)
 **/migrations/__pycache__/
 **/migrations/*.pyc
-# Uncomment the next line if you want to ignore all migrations
-# **/migrations/
+**/migrations/
 
 # Sentry debug info
 *.map
