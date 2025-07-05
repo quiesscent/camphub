@@ -633,30 +633,31 @@ class FormTest(TestCase):
     
     def test_course_form_validation(self):
         """Test course form validation"""
-        from .forms import CourseForm
+        from .serializers import CourseCreateSerializer
         
         form_data = {
-            'institution': self.institution.id,
+            'institution_id': self.institution.id,
             'course_code': 'cs101',  # Should be converted to uppercase
             'course_name': 'Test Course',
             'semester': 'fall',
             'year': 2025,
-            'instructor': self.instructor.id,
+            'instructor_id': self.instructor.id,
             'description': 'Test description',
             'max_enrollment': 30,
             'enrollment_open': True,
             'is_active': True
         }
         
-        form = CourseForm(data=form_data, user=self.instructor)
-        self.assertTrue(form.is_valid())
+        serializer = CourseCreateSerializer(data=form_data)
+        self.assertTrue(serializer.is_valid())
         
         # Test that course code is converted to uppercase
-        self.assertEqual(form.cleaned_data['course_code'], 'CS101')
+        course = serializer.save()
+        self.assertEqual(course.course_code, 'CS101')
     
     def test_study_group_form_validation(self):
         """Test study group form validation"""
-        from .forms import StudyGroupForm
+        from .serializers import StudyGroupCreateSerializer
         
         user = User.objects.create_user(
             username="student",
@@ -686,12 +687,18 @@ class FormTest(TestCase):
         form_data = {
             'name': 'Test Study Group',
             'description': 'Test description',
-            'course': course.id,
+            'course_id': course.id,
             'max_members': 10,
             'is_private': False,
             'meeting_location': 'Library',
             'meeting_frequency': 'weekly'
         }
         
-        form = StudyGroupForm(data=form_data, user=user)
-        self.assertTrue(form.is_valid())
+        # Create a mock request with user
+        from django.test import RequestFactory
+        factory = RequestFactory()
+        request = factory.post('/')
+        request.user = user
+        
+        serializer = StudyGroupCreateSerializer(data=form_data, context={'request': request})
+        self.assertTrue(serializer.is_valid())
