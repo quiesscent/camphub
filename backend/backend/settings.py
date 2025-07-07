@@ -21,6 +21,9 @@ INSTALLED_APPS = [
     "rest_framework",
     "users",
     "rest_framework_simplejwt.token_blacklist",
+
+    "content",
+    "academic",
 ]
 
 REST_FRAMEWORK = {

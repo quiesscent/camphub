@@ -6,5 +6,6 @@ urlpatterns = [
     path("api/v1/", include([
         path("auth/", include("users.urls.auth")),
         path("users/", include("users.urls.users")),
+        path("posts/", include("content.urls.posts")),
     ])),
 ]
