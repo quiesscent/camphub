@@ -569,9 +569,12 @@ def join_group_chat(request, chat_id):
             'error': 'Group chat not found'
         }, status=status.HTTP_404_NOT_FOUND)
     except ValidationError as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error("Validation error occurred while joining group chat", exc_info=True)
         return Response({
             'success': False,
-            'error': str(e)
+            'error': 'Invalid input data'
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
