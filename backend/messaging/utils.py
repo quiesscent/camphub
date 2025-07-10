@@ -337,7 +337,7 @@ def generate_conversation_id(user1: User, user2: User) -> str:
     conversation_string = f"{user_ids[0]}_{user_ids[1]}"
     
     # Generate hash for the conversation
-    return hashlib.md5(conversation_string.encode()).hexdigest()
+    return hashlib.sha256(conversation_string.encode()).hexdigest()
 
 
 def validate_group_chat_name(name: str) -> str:
