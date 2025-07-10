@@ -267,9 +267,13 @@ class GroupChatMemberView(APIView):
                         'error': 'User not found'
                     }, status=status.HTTP_404_NOT_FOUND)
                 except ValidationError as e:
+                    # Log the exception details for debugging purposes
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error("Validation error occurred: %s", str(e))
                     return Response({
                         'success': False,
-                        'error': str(e)
+                        'error': 'Invalid input. Please check your data and try again.'
                     }, status=status.HTTP_400_BAD_REQUEST)
             
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
