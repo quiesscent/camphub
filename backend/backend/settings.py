@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "community",
     "rest_framework_simplejwt.token_blacklist",
     'messaging',
+    "content"
 ]
 
 REST_FRAMEWORK = {
