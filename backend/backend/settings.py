@@ -20,22 +20,35 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "django_filters",
+    "drf_spectacular",  # Add this for Swagger documentation
     "users",
     "academic",
     "community",
     "rest_framework_simplejwt.token_blacklist",
+    'messaging',
 ]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-    )
+    ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",  # Add this for Swagger
 }
+
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
     "AUTH_HEADER_TYPES": ("Bearer",),
+}
+# Add Spectacular settings for Swagger documentation
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'CampHub API',
+    'DESCRIPTION': 'A comprehensive campus management system API',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': '/api/v1/',
 }
 
 
