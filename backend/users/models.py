@@ -130,6 +130,8 @@ class UserProfile(models.Model):
     dorm_building = models.CharField(max_length=100, blank=True)
     room_number = models.CharField(max_length=20, blank=True)
     privacy_level = models.CharField(max_length=20, choices=PRIVACY_CHOICES, default='public')
+    preferred_content_types = models.JSONField(default=list, blank=True)
+    interests = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -145,3 +147,12 @@ class UserProfile(models.Model):
         if self.campus and self.campus.institution != self.institution:
             raise ValueError("Campus must belong to the same institution")
         super().save(*args, **kwargs)
+
+    def update_interests(self, tags, weight=1.0):
+        """Update user interests based on interaction"""
+        for tag in tags:
+            if tag in self.interests:
+                self.interests[tag] += weight
+            else:
+                self.interests[tag] = weight
+        self.save()
