@@ -2,6 +2,8 @@
 *.log
 *.pot
 *.pyc
+admin.cpython-*.pyc
+models.cpython-*.pyc
 __pycache__/
 local_settings.py
 db.sqlite3
