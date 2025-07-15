@@ -14,6 +14,7 @@ pip install -r requirements.txt
 
 # Run Django migrations
 echo "Running database migrations..."
+python manage.py makemigrations users academic community messaging content
 python manage.py migrate --noinput
 
 # Collect static files
