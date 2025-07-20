@@ -112,12 +112,12 @@ const Messages = () => {
   const currentChat = chats.find(chat => chat.id === selectedChat);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen flex ">
       <Navigation />
       
-      <div className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="shape bg-gray-50 mt-5  flex-1 max-w-7xl mx-auto p-7">
         {/* Desktop Layout */}
-        <div className="hidden lg:grid grid-cols-3 gap-4 h-[calc(100vh-12rem)]">
+        <div className="hidden  lg:grid grid-cols-3 gap-4 h-[calc(100vh-12rem)]">
           {/* Chat List */}
           <Card className="col-span-1">
             <CardContent className="p-0 h-full flex flex-col">
