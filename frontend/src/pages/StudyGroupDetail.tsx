@@ -58,10 +58,10 @@ const StudyGroupDetail = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen sided">
       <Navigation />
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="shape mt-4 bg-gray-50 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Group Header */}
         <Card className="mb-8">
           <CardContent className="p-6">

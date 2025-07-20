@@ -29,7 +29,7 @@ const MarketplaceItem = () => {
     sellerReviews: 24,
     location: 'Campus',
     description: 'Barely used calculus textbook. No highlighting or writing inside. Perfect for Calc I and II courses. Includes access code for online resources (unused). This is the latest edition required for most university courses.',
-    images: ['/placeholder.svg', '/placeholder.svg', '/placeholder.svg'],
+    images: ['/study.jpg', '/study.jpg', '/study.jpg'],
     postedDate: '2 days ago',
     views: 45,
     specifications: {
@@ -46,14 +46,14 @@ const MarketplaceItem = () => {
       id: 2,
       title: 'Linear Algebra Textbook',
       price: 35,
-      image: '/placeholder.svg',
+      image: '/study.jpg',
       condition: 'Good'
     },
     {
       id: 3,
       title: 'Scientific Calculator',
       price: 25,
-      image: '/placeholder.svg',
+      image: '/study.jpg',
       condition: 'Excellent'
     }
   ];

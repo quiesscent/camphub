@@ -61,10 +61,10 @@ Companies attending include: Google, Microsoft, JPMorgan Chase, Johnson & Johnso
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen sided">
       <Navigation />
       
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="shape bg-gray-50  mt-4 px-4 sm:px-6 lg:px-8 py-8">
         {/* Event Header */}
         <Card className="mb-8 overflow-hidden">
           <div className="h-64 bg-gradient-to-br from-purple-500 to-blue-600 relative">
