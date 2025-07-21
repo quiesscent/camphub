@@ -105,7 +105,7 @@ const Marketplace = () => {
             <p className="text-gray-600">Buy and sell items with fellow students</p>
           </div>
           
-          <Button className="mt-4 md:mt-0 bg-blue-600 hover:bg-blue-700">
+          <Button className="mt-4 md:mt-0 text-white  bg-blue-600 hover:bg-blue-700">
             <Plus className="w-4 h-4 mr-2" />
             Sell Item
           </Button>
@@ -124,12 +124,12 @@ const Marketplace = () => {
               <CardContent className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Search</label>
-                  <div className="relative">
+                  <div className="relative ">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
                       type="text"
                       placeholder="Search items..."
-                      className="pl-10"
+                      className="pl-10 "
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -232,7 +232,7 @@ const Marketplace = () => {
 
                     <div className="flex space-x-2">
                       <Link to={`/marketplace/${item.id}`} className="flex-1">
-                        <Button variant="outline" className="w-full">
+                        <Button  className="w-full border shadow-sm hover:shadow-md">
                           View Details
                         </Button>
                       </Link>
