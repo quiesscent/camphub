@@ -139,8 +139,8 @@ export const logout = async () => {
   try {
     fetchAPI("auth/logout/", "POST"),
     // Remove token from localStorage
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("camphub_user_access");
+    localStorage.removeItem("camphub_user_refresh");
   } catch (error) {
     console.error("Logout failed", error);
   }
