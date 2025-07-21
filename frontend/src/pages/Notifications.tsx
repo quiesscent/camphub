@@ -84,7 +84,7 @@ const Notifications = () => {
     <div className="min-h-screen sided">
       <Navigation />
       
-      <div className="shape bg-gray-50 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="shape lg:w-full mt-5 ml-8 bg-gray-50  px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Notifications</h1>
@@ -95,8 +95,8 @@ const Notifications = () => {
           
           <div className="flex space-x-2">
             {unreadCount > 0 && (
-              <Button onClick={markAllAsRead} variant="outline">
-                <Check className="w-4 h-4 mr-2" />
+              <Button onClick={markAllAsRead}  className=' rounded-md shadow-sm' >
+                <Check className="w-4 h-4 mr-2 " />
                 Mark all as read
               </Button>
             )}
