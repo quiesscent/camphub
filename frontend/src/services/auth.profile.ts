@@ -3,15 +3,13 @@ import { jwtDecode } from "jwt-decode";
 interface DecodedToken {
   email: string;
   username: string;
-  role: string;
-  is_subscribed: boolean;
   exp: number;
   iat: number;
   [key: string]: any;
 }
 
 export const getUserFromToken = (): DecodedToken | null => {
-  const token = localStorage.getItem("wellbot_access_token");
+  const token = localStorage.getItem("camphub_user_access");
 
   if (!token) return null;
 
