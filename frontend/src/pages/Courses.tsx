@@ -136,7 +136,7 @@ const Course = () => {
     <div className="sided">
       <Navigation />
 
-      <div className="shape bg-gray-50 mt-5 shadow-sm w-full flex flex-col px-4 sm:px-6 lg:px-8 py-8">
+      <div className="shape bg-gray-50 mt-5 shadow-sm w-full-screen flex flex-col px-4 sm:px-6 lg:px-8 lg:w-full py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">My Course</h1>
 

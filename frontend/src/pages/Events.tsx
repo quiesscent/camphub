@@ -106,7 +106,7 @@ const Events = () => {
           </div>
           
           <Button 
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-blue-50  hover:bg-blue-600 hover:text-white"
             onClick={() => setIsCreateModalOpen(true)}
           >
             <Plus className="w-4 h-4 mr-2" />
