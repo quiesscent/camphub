@@ -68,7 +68,7 @@ Companies attending include: Google, Microsoft, JPMorgan Chase, Johnson & Johnso
         {/* Event Header */}
         <Card className="mb-8 overflow-hidden">
           <div className="h-64 bg-gradient-to-br from-purple-500 to-blue-600 relative">
-            <div className="absolute inset-0 bg-black bg-opacity-20" />
+            <div className="absolute inset-0 bg-white" />
             <div className="absolute bottom-6 left-6 text-white">
               <Badge className={getCategoryColor(event.category)} style={{color: 'white', backgroundColor: 'rgba(255,255,255,0.2)'}}>
                 {event.category}
