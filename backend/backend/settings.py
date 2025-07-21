@@ -8,7 +8,9 @@ SECRET_KEY = "django-insecure-rp%n4cux&^wi7gz&vilfy7zi6k^=5h7ab)u548(7tb+dh4@dne
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
+CSRF_ALLOWED_ORIGIN = ["https://camphub-demo.vercel.app/", "https://camphub-demo.onrender.com/"]
+CORS_ALLOW_ALL_ORIGINS = ["https://camphub-demo.vercel.app/", "https://camphub-demo.onrender.com/"]
 
 
 INSTALLED_APPS = [
@@ -117,6 +119,7 @@ USE_TZ = True
 
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
