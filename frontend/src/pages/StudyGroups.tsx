@@ -70,10 +70,10 @@ const StudyGroups = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen sided">
       <Navigation />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="shape bg-gray-50 max-w-7xl mx-auto mt-5 px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Study Groups</h1>

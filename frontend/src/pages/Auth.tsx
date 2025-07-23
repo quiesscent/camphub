@@ -90,14 +90,14 @@ const Auth = () => {
                   <div>
                     <Label htmlFor="email">Institutional Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400 " />
                       <Input
                         id="email"
                         type="email"
                         placeholder="your.email@university.edu"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
-                        className="pl-10"
+                        className="pl-10 bg-blue-50 border-none"
                         required
                       />
                     </div>
@@ -113,13 +113,13 @@ const Auth = () => {
                         placeholder="Enter your password"
                         value={formData.password}
                         onChange={(e) => handleInputChange('password', e.target.value)}
-                        className="pl-10"
+                        className=" bg-blue-50 pl-10 border-none"
                         required
                       />
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+                  <Button type="submit" className="w-full text-white bg-blue-600 hover:bg-blue-700">
                     Sign In
                   </Button>
                 </form>
@@ -136,6 +136,7 @@ const Auth = () => {
                         placeholder="John"
                         value={formData.firstName}
                         onChange={(e) => handleInputChange('firstName', e.target.value)}
+                        className=' bg-blue-50 border-none'
                         required
                       />
                     </div>
@@ -147,6 +148,7 @@ const Auth = () => {
                         placeholder="Doe"
                         value={formData.lastName}
                         onChange={(e) => handleInputChange('lastName', e.target.value)}
+                        className=' bg-blue-50 border-none'
                         required
                       />
                     </div>
@@ -162,7 +164,7 @@ const Auth = () => {
                         placeholder="your.email@university.edu"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
-                        className="pl-10"
+                        className="pl-10  bg-blue-50 border-none"
                         required
                       />
                     </div>
@@ -172,11 +174,12 @@ const Auth = () => {
                     <Label htmlFor="role">Role</Label>
                     <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select your role" />
+                        <SelectValue placeholder="Select your role" 
+                        className=' bg-blue-50 border-none' />
                       </SelectTrigger>
                       <SelectContent>
                         {roles.map((role) => (
-                          <SelectItem key={role.value} value={role.value}>
+                          <SelectItem className='bg-white' key={role.value} value={role.value}>
                             {role.label}
                           </SelectItem>
                         ))}

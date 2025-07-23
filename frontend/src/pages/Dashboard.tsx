@@ -73,11 +73,14 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
+    <div className="min-h-screen">
+      <div className='sided'>
+
+        <Navigation />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto  sm:px-6 lg:px-8 py-8 ">
+        <div className="shape mt-2 
+       bg-gray-50 p-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
           
           {/* Left Sidebar - Campus Stats */}
           <div className="lg:col-span-1 space-y-6">
@@ -191,6 +194,10 @@ const Dashboard = () => {
         isOpen={showCreatePost} 
         onClose={() => setShowCreatePost(false)} 
       />
+
+      </div>
+
+      
     </div>
   );
 };
