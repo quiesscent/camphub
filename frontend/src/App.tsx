@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +15,11 @@ import EventDetail from "./pages/EventDetail";
 import FeedDetail from "./pages/FeedDetail";
 import Messages from "./pages/Messages";
 import Notifications from "./pages/Notifications";
+import Index from "./pages/Index";
+import ContactUs from "./pages/ContactUs";
+import HelpCenter from "./pages/HelpCenter";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsAndConditions from "./pages/TermsAndConditions";
 import Institutions from "./pages/Institutions";
 import Marketplace from "./pages/Marketplace";
 import MarketplaceItem from "./pages/MarketplaceItem";
@@ -45,6 +49,10 @@ const App = () => (
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/institutions" element={<Institutions />} />
               <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/contact" element={<ContactUs />} />
+              <Route path="/help" element={<HelpCenter />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsAndConditions />} />
               <Route path="/marketplace/:id" element={<MarketplaceItem />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

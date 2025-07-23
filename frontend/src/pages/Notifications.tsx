@@ -81,11 +81,11 @@ const Notifications = () => {
   const unreadCount = notifications.filter(notif => !notif.isRead).length;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen sided overflow-x-hidden">
       <Navigation />
       
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
+      <div className="shape w-full-screen md:w-full lg:w-full mt-5 ml-8 bg-gray-50  px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col gap-4 md:flex-row  justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Notifications</h1>
             <p className="text-gray-600">
@@ -95,12 +95,12 @@ const Notifications = () => {
           
           <div className="flex space-x-2">
             {unreadCount > 0 && (
-              <Button onClick={markAllAsRead} variant="outline">
-                <Check className="w-4 h-4 mr-2" />
+              <Button onClick={markAllAsRead}  className='hover:shadow-md shadow-sm' >
+                <Check className="w-4 h-4 mr-2 " />
                 Mark all as read
               </Button>
             )}
-            <Button variant="outline">
+            <Button className=' hover:shadow-md shadow-sm' >
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </Button>
