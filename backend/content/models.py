@@ -112,3 +112,6 @@ class UserInteraction(models.Model):
 
     class Meta:
         unique_together = ['user', 'post', 'interaction_type']
+        
+    def __str__(self):
+        return f"{self.user} {self.interaction_type} {self.post}"
