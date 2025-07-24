@@ -544,13 +544,16 @@ class Command(BaseCommand):
             posts.append(post)
             
             # Create user interaction for the author viewing their own post
-            UserInteraction.objects.create(
-                user=author,
-                post=post,
-                interaction_type='view',
-                dwell_time=random.uniform(10, 60)
-            )
-        
+            try:
+                UserInteraction.objects.create(
+                    user=author,
+                    post=post,
+                    interaction_type='view',
+                    dwell_time=random.uniform(10, 60)
+                )
+            except Exception as e:
+                self.stdout.write(self.style.WARNING(f"Could not create interaction: {str(e)}"))
+    
         # Create comments on posts
         for post in posts:
             num_comments = random.randint(0, 5)
@@ -558,7 +561,7 @@ class Command(BaseCommand):
             for _ in range(num_comments):
                 commenter = random.choice(users)
                 
-                Comment.objects.create(
+                comment = Comment.objects.create(
                     post=post,
                     author=commenter,
                     content=fake.sentence(),
@@ -566,14 +569,24 @@ class Command(BaseCommand):
                 )
                 
                 # Create interaction for commenting
-                UserInteraction.objects.create(
-                    user=commenter,
-                    post=post,
-                    interaction_type='comment',
-                    dwell_time=random.uniform(20, 120)
-                )
-                
-            # Create likes
+                try:
+                    # Check if comment interaction already exists
+                    if not UserInteraction.objects.filter(
+                        user=commenter, 
+                        post=post, 
+                        interaction_type='comment'
+                    ).exists():
+                        UserInteraction.objects.create(
+                            user=commenter,
+                            post=post,
+                            interaction_type='comment',
+                            dwell_time=random.uniform(20, 120)
+                        )
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f"Could not create comment interaction: {str(e)}"))
+            
+        # Create likes
+        for post in posts:
             num_likes = random.randint(0, 10)
             likers = random.sample(users, min(num_likes, len(users)))
             
@@ -584,14 +597,24 @@ class Command(BaseCommand):
                 )
                 
                 # Create interaction for liking
-                UserInteraction.objects.create(
-                    user=liker,
-                    post=post,
-                    interaction_type='like',
-                    dwell_time=random.uniform(5, 30)
-                )
-                
-            # Create shares
+                try:
+                    # Check if like interaction already exists
+                    if not UserInteraction.objects.filter(
+                        user=liker, 
+                        post=post, 
+                        interaction_type='like'
+                    ).exists():
+                        UserInteraction.objects.create(
+                            user=liker,
+                            post=post,
+                            interaction_type='like',
+                            dwell_time=random.uniform(5, 30)
+                        )
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f"Could not create like interaction: {str(e)}"))
+            
+        # Create shares
+        for post in posts:
             if random.random() < 0.2:  # 20% chance for a post to be shared
                 num_shares = random.randint(1, 3)
                 sharers = random.sample(users, min(num_shares, len(users)))
@@ -604,29 +627,42 @@ class Command(BaseCommand):
                     )
                     
                     # Create interaction for sharing
-                    UserInteraction.objects.create(
-                        user=sharer,
-                        post=post,
-                        interaction_type='share',
-                        dwell_time=random.uniform(15, 60)
-                    )
-                    
+                    try:
+                        # Check if share interaction already exists
+                        if not UserInteraction.objects.filter(
+                            user=sharer, 
+                            post=post, 
+                            interaction_type='share'
+                        ).exists():
+                            UserInteraction.objects.create(
+                                user=sharer,
+                                post=post,
+                                interaction_type='share',
+                                dwell_time=random.uniform(15, 60)
+                            )
+                    except Exception as e:
+                        self.stdout.write(self.style.WARNING(f"Could not create share interaction: {str(e)}"))
+                
         # Create additional view interactions
         for _ in range(min(len(users) * 5, 500)):  # Up to 5 views per user, max 500
             viewer = random.choice(users)
             post = random.choice(posts)
             
-            # Skip if user already interacted with this post
-            if UserInteraction.objects.filter(user=viewer, post=post).exists():
+            # Skip if user already has a view interaction with this post
+            if UserInteraction.objects.filter(user=viewer, post=post, interaction_type='view').exists():
                 continue
-                
-            UserInteraction.objects.create(
-                user=viewer,
-                post=post,
-                interaction_type='view',
-                dwell_time=random.uniform(3, 180)
-            )
-                
+            
+            try:    
+                UserInteraction.objects.create(
+                    user=viewer,
+                    post=post,
+                    interaction_type='view',
+                    dwell_time=random.uniform(3, 180)
+                )
+            except Exception as e:
+                # Skip silently on duplicate interaction
+                pass
+            
         self.stdout.write(f'  Created {len(posts)} posts with comments, likes, and shares')
 
     def create_messages(self, users):
@@ -674,30 +710,46 @@ class Command(BaseCommand):
                 max_members=random.randint(10, 50)
             )
             
-            # Add members (creator already added as admin)
+            # Add members (creator is automatically added as admin in the model's save method)
             num_members = random.randint(3, 10)
             members = random.sample([u for u in users if u != creator], min(num_members, len(users)-1))
             
+            members_to_add = []
             for member in members:
-                GroupChatMember.objects.create(
-                    chat=group_chat,
-                    user=member,
-                    is_admin=random.random() < 0.2  # 20% chance to be admin
-                )
-            
-            # Add messages
-            all_members = [creator] + members
+                try:
+                    chat_member = GroupChatMember.objects.create(
+                        chat=group_chat,
+                        user=member,
+                        is_admin=random.random() < 0.2  # 20% chance to be admin
+                    )
+                    members_to_add.append(member)
+                except Exception as e:
+                    self.stdout.write(self.style.WARNING(f"Could not add {member} to group: {str(e)}"))
+        
+            # Add messages - ensure we're using confirmed members
+            all_members = [creator] + members_to_add  # Only use members we successfully added
             num_messages = random.randint(5, 20)
             
             for _ in range(num_messages):
                 sender = random.choice(all_members)
                 
-                GroupMessage.objects.create(
-                    chat=group_chat,
-                    sender=sender,
-                    content=fake.paragraph()
-                )
-        
+                # Double-check that sender is actually a member before creating message
+                if group_chat.is_member(sender):
+                    try:
+                        GroupMessage.objects.create(
+                            chat=group_chat,
+                            sender=sender,
+                            content=fake.paragraph()
+                        )
+                    except Exception as e:
+                        self.stdout.write(self.style.WARNING(
+                            f"Failed to create group message from {sender} in {group_chat.name}: {str(e)}"
+                        ))
+                else:
+                    self.stdout.write(self.style.WARNING(
+                        f"Skipping message creation: {sender} is not a member of {group_chat.name}"
+                    ))
+    
         # Create notifications
         num_notifications = min(len(users) * 3, 300)  # Up to 3 notifications per user, max 300
         
