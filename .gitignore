@@ -80,3 +80,5 @@ Pipfile.lock
 # Docker
 *.pid
 docker-compose.override.yml
+
+*.copilot-rules.md

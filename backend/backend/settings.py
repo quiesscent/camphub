@@ -48,11 +48,62 @@ SIMPLE_JWT = {
 # Add Spectacular settings for Swagger documentation
 SPECTACULAR_SETTINGS = {
     'TITLE': 'CampHub API',
-    'DESCRIPTION': 'A comprehensive campus management system API',
+    'DESCRIPTION': '''
+    A comprehensive campus management system API that provides:
+    - User authentication and profile management
+    - Institutional email verification
+    - Academic course and schedule management
+    - Community features (posts, groups, events)
+    - Real-time messaging and notifications system
+    - Content feed with machine learning algorithms
+    
+    ## Authentication
+    This API uses JWT (JSON Web Tokens) for authentication. Include the access token in the Authorization header:
+    `Authorization: Bearer <your-access-token>`
+    
+    ## Real-time Features
+    Messaging supports real-time updates through WebSocket connections for instant message delivery and presence status.
+    
+    ## Rate Limiting
+    API endpoints are rate-limited to prevent abuse. Messaging endpoints have specific limits for message sending.
+    
+    ## File Uploads
+    Image and file uploads are automatically optimized and validated for security and performance.
+    ''',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
     'SCHEMA_PATH_PREFIX': '/api/v1/',
+    'TAGS': [
+        {'name': 'Authentication', 'description': 'User registration, login, email verification'},
+        {'name': 'User Profile', 'description': 'Profile management and user information'},
+        {'name': 'Institutions', 'description': 'Educational institutions and campuses'},
+        {'name': 'Academic', 'description': 'Courses, schedules, and academic content'},
+        {'name': 'Community', 'description': 'Posts, groups, events, and social features'},
+        {'name': 'Content Feed', 'description': 'Personalized content feed with ML algorithms'},
+        {'name': 'Content Interactions', 'description': 'User interactions and engagement tracking'},
+        {'name': 'Posts', 'description': 'Create, read, update, and delete posts'},
+        {'name': 'Comments', 'description': 'Comment system with nested replies'},
+        {'name': 'Post Interactions', 'description': 'Likes, shares, and social interactions'},
+        {'name': 'Direct Messages', 'description': 'One-on-one messaging between users'},
+        {'name': 'Group Chats', 'description': 'Multi-user group messaging and management'},
+        {'name': 'Group Messages', 'description': 'Messages within group chats'},
+        {'name': 'Group Management', 'description': 'Join, leave, and manage group memberships'},
+        {'name': 'Notifications', 'description': 'Push notifications and alerts'},
+        {'name': 'Messaging Utilities', 'description': 'Search, unread counts, and messaging tools'},
+    ],
+    'SERVERS': [
+        {'url': 'http://localhost:8000', 'description': 'Development server'},
+        {'url': 'https://api.camphub.edu', 'description': 'Production server'},
+    ],
+    'SECURITY': [{'Bearer': []}],
+    'CONTACT': {
+        'name': 'CampHub API Support',
+        'email': 'api-support@camphub.edu',
+    },
+    'LICENSE': {
+        'name': 'MIT License',
+    },
 }
 
 
@@ -157,3 +208,32 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite's default development server
     "http://127.0.0.1:5173",
 ]
+
+# Messaging-specific settings
+MESSAGE_RATE_LIMIT = 60  # messages per minute per user
+GROUP_MESSAGE_RATE_LIMIT = 120  # group messages per minute per user
+MAX_GROUP_MEMBERS = 500
+MAX_MESSAGE_LENGTH = 5000
+MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024  # 10MB
+
+# WebSocket settings for real-time messaging
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
+
+# Cache settings for online status
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+    }
+}
+
+# File storage for message attachments
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+ATTACHMENT_ROOT = MEDIA_ROOT / 'message_attachments'

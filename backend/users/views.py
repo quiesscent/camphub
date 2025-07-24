@@ -15,6 +15,9 @@ from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.openapi import OpenApiResponse
+from drf_spectacular.types import OpenApiTypes
 from .serializers import (
     RegisterSerializer, LoginSerializer, ChangePasswordSerializer, InstitutionSerializer
 )
@@ -73,6 +76,66 @@ def send_verification_email(user):
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        description="Register a new user account with institutional email verification",
+        request=RegisterSerializer,
+        responses={
+            201: OpenApiResponse(
+                description="Registration successful",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "data": {
+                                "user_id": 1,
+                                "email": "student@university.edu",
+                                "verification_required": True,
+                                "message": "Verification email sent to student@university.edu"
+                            },
+                            "message": "Registration successful. Please verify your email.",
+                            "meta": {
+                                "timestamp": "2024-01-01T00:00:00Z",
+                                "version": "1.0"
+                            }
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(
+                description="Validation error",
+                examples=[
+                    OpenApiExample(
+                        "Validation Error",
+                        value={
+                            "success": False,
+                            "errors": {
+                                "email": ["Email must be from university.edu domain"],
+                                "password": ["This password is too short."]
+                            },
+                            "message": "Registration failed"
+                        }
+                    )
+                ]
+            )
+        },
+        tags=['Authentication'],
+        examples=[
+            OpenApiExample(
+                "Student Registration",
+                value={
+                    "email": "john.doe@university.edu",
+                    "password": "SecurePassword123!",
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "student_id": "STU2024001",
+                    "major": "Computer Science",
+                    "graduation_year": 2026,
+                    "institution_id": 1
+                }
+            )
+        ]
+    )
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
@@ -102,6 +165,53 @@ class RegisterView(APIView):
             status.HTTP_400_BAD_REQUEST
         )
 
+@extend_schema(
+    description="Verify user email address using verification token sent via email",
+    request={
+        'application/json': {
+            'type': 'object',
+            'required': ['uid', 'token'],
+            'properties': {
+                'uid': {
+                    'type': 'string',
+                    'description': 'User ID encoded in base64 from verification email'
+                },
+                'token': {
+                    'type': 'string',
+                    'description': 'Verification token from email'
+                }
+            }
+        }
+    },
+    responses={
+        200: OpenApiResponse(
+            description="Email verification successful",
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "data": {"user_id": 1},
+                        "message": "Email verified successfully"
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description="Invalid verification token or parameters",
+            examples=[
+                OpenApiExample(
+                    "Invalid Token",
+                    value={
+                        "success": False,
+                        "message": "Invalid verification token"
+                    }
+                )
+            ]
+        )
+    },
+    tags=['Authentication']
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def verify_email(request):
@@ -145,6 +255,58 @@ def verify_email(request):
             status_code=status.HTTP_400_BAD_REQUEST
         )
 
+@extend_schema(
+    description="Authenticate user and return access/refresh tokens",
+    request=LoginSerializer,
+    responses={
+        200: OpenApiResponse(
+            description="Login successful",
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "data": {
+                            "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                            "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                            "user": {
+                                "id": 1,
+                                "email": "student@university.edu",
+                                "first_name": "John",
+                                "last_name": "Doe",
+                                "profile_picture": "/media/profile_pictures/abc123.jpg",
+                                "institution": {
+                                    "id": 1,
+                                    "name": "University of Example",
+                                    "domain": "university.edu"
+                                },
+                                "role": "student",
+                                "is_verified": True
+                            }
+                        },
+                        "message": "Login successful"
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description="Invalid credentials",
+            examples=[
+                OpenApiExample(
+                    "Invalid Credentials",
+                    value={
+                        "success": False,
+                        "errors": {
+                            "non_field_errors": ["Unable to log in with provided credentials."]
+                        },
+                        "message": "Login failed"
+                    }
+                )
+            ]
+        )
+    },
+    tags=['Authentication']
+)
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_view(request):
@@ -184,6 +346,37 @@ def login_view(request):
         status.HTTP_400_BAD_REQUEST
     )
 
+@extend_schema(
+    description="Logout user by blacklisting all tokens",
+    request={
+        'application/json': {
+            'type': 'object',
+            'properties': {
+                'refresh_token': {
+                    'type': 'string',
+                    'description': 'Refresh token to blacklist'
+                }
+            }
+        }
+    },
+    responses={
+        200: OpenApiResponse(
+            description="Logout successful",
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "message": "Successfully logged out"
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(description="Logout failed"),
+        401: OpenApiResponse(description="Authentication required")
+    },
+    tags=['Authentication']
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout_view(request):
@@ -208,6 +401,42 @@ def logout_view(request):
         )
 
 class CustomTokenRefreshView(TokenRefreshView):
+    @extend_schema(
+        description="Refresh access token using refresh token",
+        request={
+            'application/json': {
+                'type': 'object',
+                'required': ['refresh_token'],
+                'properties': {
+                    'refresh_token': {
+                        'type': 'string',
+                        'description': 'Valid refresh token'
+                    }
+                }
+            }
+        },
+        responses={
+            200: OpenApiResponse(
+                description="Token refreshed successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "data": {
+                                "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                                "expires_in": 1800
+                            },
+                            "message": "Token refreshed successfully"
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(description="Invalid refresh token"),
+            401: OpenApiResponse(description="Token expired")
+        },
+        tags=['Authentication']
+    )
     def post(self, request, *args, **kwargs):
         refresh_token = request.data.get("refresh_token")
         if not refresh_token:
@@ -239,6 +468,56 @@ class CustomTokenRefreshView(TokenRefreshView):
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        description="Get current user's complete profile information",
+        responses={
+            200: OpenApiResponse(
+                description="Profile retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "data": {
+                                "id": 1,
+                                "email": "student@university.edu",
+                                "first_name": "John",
+                                "last_name": "Doe",
+                                "profile_picture": "/media/profile_pictures/abc123.jpg",
+                                "bio": "Computer Science student passionate about AI",
+                                "major": "Computer Science",
+                                "graduation_year": 2026,
+                                "student_id": "STU2024001",
+                                "dorm_building": "Smith Hall",
+                                "room_number": "204A",
+                                "institution": {
+                                    "id": 1,
+                                    "name": "University of Example",
+                                    "domain": "university.edu"
+                                },
+                                "campus": {
+                                    "id": 1,
+                                    "name": "Main Campus",
+                                    "address": "123 University Ave"
+                                },
+                                "privacy_settings": {},
+                                "stats": {
+                                    "posts_count": 15,
+                                    "friends_count": 42,
+                                    "study_groups_count": 3,
+                                    "events_attending": 5
+                                },
+                                "created_at": "2024-01-01T00:00:00Z",
+                                "updated_at": "2024-01-01T00:00:00Z"
+                            }
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['User Profile']
+    )
     def get(self, request):
         user = request.user
         profile = getattr(user, "profile", None)
@@ -279,6 +558,44 @@ class ProfileView(APIView):
         }
         return api_response(True, data)
 
+    @extend_schema(
+        description="Update current user's profile information",
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'first_name': {'type': 'string', 'description': 'First name'},
+                    'last_name': {'type': 'string', 'description': 'Last name'},
+                    'bio': {'type': 'string', 'description': 'Biography'},
+                    'major': {'type': 'string', 'description': 'Academic major'},
+                    'graduation_year': {'type': 'integer', 'description': 'Graduation year'},
+                    'dorm_building': {'type': 'string', 'description': 'Dormitory building'},
+                    'room_number': {'type': 'string', 'description': 'Room number'},
+                    'privacy_settings': {'type': 'object', 'description': 'Privacy preferences'}
+                }
+            }
+        },
+        responses={
+            200: OpenApiResponse(
+                description="Profile updated successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "data": {
+                                "id": 1,
+                                "message": "Profile updated successfully"
+                            }
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['User Profile']
+    )
     def put(self, request):
         user = request.user
         profile = getattr(user, "profile", None)
@@ -305,6 +622,57 @@ class ProfileView(APIView):
 class PublicProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        description="Get public profile information for any user",
+        parameters=[
+            OpenApiParameter(
+                name='user_id',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description='ID of the user whose profile to retrieve'
+            )
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Public profile retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "data": {
+                                "id": 2,
+                                "first_name": "Jane",
+                                "last_name": "Smith",
+                                "profile_picture": "/media/profile_pictures/def456.jpg",
+                                "bio": "Psychology major, loves research",
+                                "major": "Psychology",
+                                "graduation_year": 2025,
+                                "institution": {
+                                    "id": 1,
+                                    "name": "University of Example"
+                                },
+                                "campus": {
+                                    "id": 1,
+                                    "name": "Main Campus"
+                                },
+                                "is_friend": False,
+                                "mutual_friends_count": 5,
+                                "common_courses": ["PSYC101", "STAT200"],
+                                "stats": {
+                                    "posts_count": 23,
+                                    "friends_count": 67
+                                }
+                            }
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description="Authentication required"),
+            404: OpenApiResponse(description="User not found")
+        },
+        tags=['User Profile']
+    )
     def get(self, request, user_id):
         user = get_object_or_404(User, id=user_id)
         profile = getattr(user, "profile", None)
@@ -342,6 +710,54 @@ class InstitutionListView(generics.ListAPIView):
     serializer_class = InstitutionSerializer
     permission_classes = [AllowAny]
     
+    @extend_schema(
+        description="Get list of all active institutions available for registration",
+        parameters=[
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Search institutions by name or domain',
+                required=False
+            ),
+            OpenApiParameter(
+                name='ordering',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Order by: name, domain, created_at (use - for descending)',
+                required=False
+            )
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Institutions retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "data": [
+                                {
+                                    "id": 1,
+                                    "name": "University of Example",
+                                    "domain": "university.edu",
+                                    "logo": "/media/institution_logos/uni_logo.jpg"
+                                },
+                                {
+                                    "id": 2,
+                                    "name": "Tech Institute",
+                                    "domain": "tech.edu",
+                                    "logo": "/media/institution_logos/tech_logo.jpg"
+                                }
+                            ],
+                            "message": "Institutions retrieved successfully"
+                        }
+                    )
+                ]
+            )
+        },
+        tags=['Institutions']
+    )
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
@@ -351,9 +767,42 @@ class ChangePasswordView(generics.UpdateAPIView):
     serializer_class = ChangePasswordSerializer
     permission_classes = [IsAuthenticated]
     
-    def get_object(self):
-        return self.request.user
-    
+    @extend_schema(
+        description="Change user password with old password verification",
+        request=ChangePasswordSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Password changed successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "message": "Password changed successfully"
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(
+                description="Validation error",
+                examples=[
+                    OpenApiExample(
+                        "Validation Error",
+                        value={
+                            "success": False,
+                            "errors": {
+                                "old_password": ["Old password is incorrect"],
+                                "new_password": ["This password is too short."]
+                            },
+                            "message": "Password change failed"
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['User Profile']
+    )
     def update(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
@@ -374,3 +823,6 @@ class ChangePasswordView(generics.UpdateAPIView):
             serializer.errors, 
             status.HTTP_400_BAD_REQUEST
         )
+
+    def get_object(self):
+        return self.request.user
