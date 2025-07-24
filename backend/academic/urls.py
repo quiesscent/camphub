@@ -1,33 +1,26 @@
-from django.urls import path, include
-from .views import (
-    CourseListView, CourseDetailView, CourseCreateView,
-    CourseEnrollmentsView, CourseStudyGroupsView,
-    StudyGroupListView, StudyGroupDetailView, StudyGroupCreateView,
-    StudyGroupMembersView, AcademicDashboardView,
-    enroll_in_course, unenroll_from_course,
-    join_study_group, leave_study_group
-)
+from django.urls import path
+from . import views
 
 app_name = 'academic'
 
 urlpatterns = [
-    # Course URLs
-    path('courses/', CourseListView.as_view(), name='course_list'),
-    path('courses/create/', CourseCreateView.as_view(), name='course_create'),
-    path('courses/<int:pk>/', CourseDetailView.as_view(), name='course_detail'),
-    path('courses/<int:course_id>/enroll/', enroll_in_course, name='enroll_course'),
-    path('courses/<int:course_id>/unenroll/', unenroll_from_course, name='unenroll_course'),
-    path('courses/<int:course_id>/enrollments/', CourseEnrollmentsView.as_view(), name='course_enrollments'),
-    path('courses/<int:course_id>/study-groups/', CourseStudyGroupsView.as_view(), name='course_study_groups'),
+    # Course endpoints
+    path('courses/', views.CourseListView.as_view(), name='course-list'),
+    path('courses/create/', views.CourseCreateView.as_view(), name='course-create'),
+    path('courses/<int:pk>/', views.CourseDetailView.as_view(), name='course-detail'),
+    path('courses/<int:course_id>/enroll/', views.enroll_in_course, name='course-enroll'),
+    path('courses/<int:course_id>/unenroll/', views.unenroll_from_course, name='course-unenroll'),
+    path('courses/<int:course_id>/enrollments/', views.CourseEnrollmentsView.as_view(), name='course-enrollments'),
+    path('courses/<int:course_id>/study-groups/', views.CourseStudyGroupsView.as_view(), name='course-study-groups'),
     
-    # Study Group URLs
-    path('study-groups/', StudyGroupListView.as_view(), name='study_group_list'),
-    path('study-groups/create/', StudyGroupCreateView.as_view(), name='study_group_create'),
-    path('study-groups/<int:pk>/', StudyGroupDetailView.as_view(), name='study_group_detail'),
-    path('study-groups/<int:group_id>/join/', join_study_group, name='join_study_group'),
-    path('study-groups/<int:group_id>/leave/', leave_study_group, name='leave_study_group'),
-    path('study-groups/<int:group_id>/members/', StudyGroupMembersView.as_view(), name='study_group_members'),
+    # Study group endpoints
+    path('study-groups/', views.StudyGroupListView.as_view(), name='study-group-list'),
+    path('study-groups/create/', views.StudyGroupCreateView.as_view(), name='study-group-create'),
+    path('study-groups/<int:pk>/', views.StudyGroupDetailView.as_view(), name='study-group-detail'),
+    path('study-groups/<int:group_id>/join/', views.join_study_group, name='study-group-join'),
+    path('study-groups/<int:group_id>/leave/', views.leave_study_group, name='study-group-leave'),
+    path('study-groups/<int:group_id>/members/', views.StudyGroupMembersView.as_view(), name='study-group-members'),
     
-    # Dashboard
-    path('dashboard/', AcademicDashboardView.as_view(), name='academic_dashboard'),
+    # Dashboard endpoint
+    path('dashboard/', views.AcademicDashboardView.as_view(), name='academic-dashboard'),
 ]
