@@ -12,6 +12,10 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
+from drf_spectacular.openapi import OpenApiResponse
+from drf_spectacular.types import OpenApiTypes
+
 from .models import (
     DirectMessage, 
     GroupChat, 
@@ -62,6 +66,129 @@ class DirectMessageListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, CanSendDirectMessage]
     pagination_class = StandardResultPagination
     
+    @extend_schema(
+        description="Get direct messages for a conversation or create a new message. Supports real-time messaging with automatic read status updates.",
+        parameters=[
+            OpenApiParameter(
+                name='other_user',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description='ID of the other user in the conversation to filter messages',
+                required=False
+            ),
+            OpenApiParameter(
+                name='page',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description='Page number for pagination (default: 1)',
+                required=False
+            ),
+            OpenApiParameter(
+                name='page_size',
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description='Number of messages per page (max: 100, default: 20)',
+                required=False
+            )
+        ],
+        request=DirectMessageSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Messages retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "count": 15,
+                            "next": "http://api.example.com/api/v1/messaging/messages/?page=2",
+                            "previous": None,
+                            "results": [
+                                {
+                                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                                    "sender": {
+                                        "id": 1,
+                                        "username": "john_doe",
+                                        "first_name": "John",
+                                        "last_name": "Doe",
+                                        "profile_picture": "/media/profiles/john.jpg"
+                                    },
+                                    "recipient": {
+                                        "id": 2,
+                                        "username": "jane_smith",
+                                        "first_name": "Jane",
+                                        "last_name": "Smith"
+                                    },
+                                    "content": "Hey, how are you doing?",
+                                    "is_read": False,
+                                    "read_at": None,
+                                    "created_at": "2024-01-01T10:30:00Z",
+                                    "updated_at": "2024-01-01T10:30:00Z"
+                                }
+                            ]
+                        }
+                    )
+                ]
+            ),
+            201: OpenApiResponse(
+                description="Message sent successfully",
+                examples=[
+                    OpenApiExample(
+                        "Message Sent",
+                        value={
+                            "id": "123e4567-e89b-12d3-a456-426614174000",
+                            "sender": {
+                                "id": 1,
+                                "username": "john_doe",
+                                "first_name": "John",
+                                "last_name": "Doe"
+                            },
+                            "recipient": {
+                                "id": 2,
+                                "username": "jane_smith",
+                                "first_name": "Jane",
+                                "last_name": "Smith"
+                            },
+                            "content": "Hello! How's your day going?",
+                            "is_read": False,
+                            "created_at": "2024-01-01T10:30:00Z"
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(
+                description="Validation error",
+                examples=[
+                    OpenApiExample(
+                        "Validation Error",
+                        value={
+                            "recipient": ["This field is required"],
+                            "content": ["Message content cannot be empty"]
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied - cannot message this user")
+        },
+        tags=['Direct Messages'],
+        examples=[
+            OpenApiExample(
+                "Send Message",
+                value={
+                    "recipient": 2,
+                    "content": "Hello! How's your day going?"
+                }
+            ),
+            OpenApiExample(
+                "Send Message with Attachment",
+                value={
+                    "recipient": 2,
+                    "content": "Check out this file I'm sharing!",
+                    "attachment_ids": ["att-123", "att-456"]
+                }
+            )
+        ]
+    )
     def get_queryset(self):
         user = self.request.user
         other_user_id = self.request.query_params.get('other_user')
@@ -99,6 +226,21 @@ class DirectMessageDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = DirectMessageSerializer
     permission_classes = [IsAuthenticated, IsDirectMessageParticipant]
     
+    @extend_schema(
+        description="Get, update, or delete a specific direct message. Only message participants can access, and only sender can modify.",
+        responses={
+            200: OpenApiResponse(
+                description="Message retrieved/updated successfully",
+                response=DirectMessageSerializer
+            ),
+            204: OpenApiResponse(description="Message deleted successfully"),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied - not message participant or sender"),
+            404: OpenApiResponse(description="Message not found")
+        },
+        tags=['Direct Messages']
+    )
     def perform_update(self, serializer):
         # Only sender can update their own messages
         if serializer.instance.sender != self.request.user:
@@ -119,6 +261,67 @@ class ConversationListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, CanViewConversation]
     pagination_class = StandardResultPagination
     
+    @extend_schema(
+        description="Get all active conversations for the authenticated user with last message info and unread counts",
+        parameters=[
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Search conversations by participant name or username',
+                required=False
+            ),
+            OpenApiParameter(
+                name='unread_only',
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description='Filter to show only conversations with unread messages',
+                required=False
+            )
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Conversations retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "count": 5,
+                            "next": None,
+                            "previous": None,
+                            "results": [
+                                {
+                                    "other_user": {
+                                        "id": 2,
+                                        "username": "jane_smith",
+                                        "first_name": "Jane",
+                                        "last_name": "Smith",
+                                        "profile_picture": "/media/profiles/jane.jpg",
+                                        "is_online": True,
+                                        "last_seen": "2024-01-01T10:25:00Z"
+                                    },
+                                    "last_message": {
+                                        "id": "123e4567-e89b-12d3-a456-426614174000",
+                                        "content": "See you tomorrow!",
+                                        "sender": {
+                                            "id": 2,
+                                            "username": "jane_smith"
+                                        },
+                                        "created_at": "2024-01-01T10:15:00Z",
+                                        "is_read": False
+                                    },
+                                    "unread_count": 3,
+                                    "last_message_time": "2024-01-01T10:15:00Z"
+                                }
+                            ]
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Direct Messages']
+    )
     def get(self, request, *args, **kwargs):
         user = request.user
         conversations = DirectMessage.get_user_conversations(user)
@@ -154,6 +357,45 @@ class MarkMessageAsReadView(APIView):
     """
     permission_classes = [IsAuthenticated, CanMarkAsRead]
     
+    @extend_schema(
+        description="Mark specific direct messages or all unread messages as read for the authenticated user",
+        request=MarkAsReadSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Messages marked as read successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "message": "Marked 5 messages as read",
+                            "count": 5
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Direct Messages'],
+        examples=[
+            OpenApiExample(
+                "Mark Specific Messages",
+                value={
+                    "message_ids": [
+                        "123e4567-e89b-12d3-a456-426614174000",
+                        "456e7890-e89b-12d3-a456-426614174001"
+                    ]
+                }
+            ),
+            OpenApiExample(
+                "Mark All Unread",
+                value={
+                    "message_ids": []
+                }
+            )
+        ]
+    )
     def post(self, request):
         serializer = MarkAsReadSerializer(data=request.data)
         if serializer.is_valid():
@@ -196,6 +438,115 @@ class GroupChatListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, CanCreateGroupChat]
     pagination_class = StandardResultPagination
     
+    @extend_schema(
+        description="Get user's group chats or create a new group chat. Supports both public and private groups with member management.",
+        parameters=[
+            OpenApiParameter(
+                name='search',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Search group chats by name or description',
+                required=False
+            ),
+            OpenApiParameter(
+                name='is_private',
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description='Filter by private/public group chats',
+                required=False
+            ),
+            OpenApiParameter(
+                name='is_admin',
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description='Filter to show only groups where user is admin',
+                required=False
+            )
+        ],
+        request=GroupChatSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Group chats retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "count": 3,
+                            "results": [
+                                {
+                                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                                    "name": "CS Study Group",
+                                    "description": "Group for Computer Science students",
+                                    "creator": {
+                                        "id": 1,
+                                        "username": "john_doe",
+                                        "first_name": "John",
+                                        "last_name": "Doe"
+                                    },
+                                    "member_count": 15,
+                                    "is_private": False,
+                                    "is_active": True,
+                                    "max_members": 50,
+                                    "user_role": "admin",
+                                    "last_message": {
+                                        "content": "Meeting tomorrow at 3 PM",
+                                        "sender": "jane_smith",
+                                        "created_at": "2024-01-01T10:00:00Z"
+                                    },
+                                    "unread_count": 2,
+                                    "created_at": "2024-01-01T09:00:00Z"
+                                }
+                            ]
+                        }
+                    )
+                ]
+            ),
+            201: OpenApiResponse(
+                description="Group chat created successfully",
+                examples=[
+                    OpenApiExample(
+                        "Group Created",
+                        value={
+                            "id": "123e4567-e89b-12d3-a456-426614174000",
+                            "name": "New Study Group",
+                            "description": "A group for studying together",
+                            "creator": {
+                                "id": 1,
+                                "username": "john_doe"
+                            },
+                            "is_private": False,
+                            "max_members": 25,
+                            "member_count": 1,
+                            "created_at": "2024-01-01T10:30:00Z"
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Group Chats'],
+        examples=[
+            OpenApiExample(
+                "Create Public Group",
+                value={
+                    "name": "Study Group - Advanced Math",
+                    "description": "Group for discussing advanced mathematics topics",
+                    "is_private": False,
+                    "max_members": 30
+                }
+            ),
+            OpenApiExample(
+                "Create Private Group",
+                value={
+                    "name": "Close Friends",
+                    "description": "Private group for close friends",
+                    "is_private": True,
+                    "max_members": 10
+                }
+            )
+        ]
+    )
     def get_queryset(self):
         user = self.request.user
         return GroupChat.active.get_user_chats(user)
@@ -212,6 +563,21 @@ class GroupChatDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = GroupChatSerializer
     permission_classes = [IsAuthenticated, IsGroupChatMember]
     
+    @extend_schema(
+        description="Get, update, or delete a group chat. Only members can view, only admins/creator can modify.",
+        responses={
+            200: OpenApiResponse(
+                description="Group chat retrieved/updated successfully",
+                response=GroupChatSerializer
+            ),
+            204: OpenApiResponse(description="Group chat deleted successfully"),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied - not group member or insufficient privileges"),
+            404: OpenApiResponse(description="Group chat not found")
+        },
+        tags=['Group Chats']
+    )
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH']:
             return [IsAuthenticated(), IsGroupChatCreatorOrAdmin()]
@@ -234,6 +600,63 @@ class GroupChatMemberView(APIView):
     """
     permission_classes = [IsAuthenticated, CanManageGroupChatMembers]
     
+    @extend_schema(
+        description="Add a member to the group chat. Only group admins and creator can add members.",
+        parameters=[
+            OpenApiParameter(
+                name='chat_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='UUID of the group chat'
+            )
+        ],
+        request=AddMemberSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Member added successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "message": "Added jane_smith to group chat",
+                            "member": {
+                                "user": {
+                                    "id": 2,
+                                    "username": "jane_smith",
+                                    "first_name": "Jane",
+                                    "last_name": "Smith"
+                                },
+                                "is_admin": False,
+                                "joined_at": "2024-01-01T10:30:00Z"
+                            }
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(description="Validation error or group is full"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied - not group admin"),
+            404: OpenApiResponse(description="Group chat or user not found")
+        },
+        tags=['Group Management'],
+        examples=[
+            OpenApiExample(
+                "Add Regular Member",
+                value={
+                    "user_id": 2,
+                    "is_admin": False
+                }
+            ),
+            OpenApiExample(
+                "Add Admin Member",
+                value={
+                    "user_id": 3,
+                    "is_admin": True
+                }
+            )
+        ]
+    )
     def post(self, request, chat_id):
         """Add a member to the group chat"""
         try:
@@ -284,6 +707,45 @@ class GroupChatMemberView(APIView):
                 'error': 'Group chat not found'
             }, status=status.HTTP_404_NOT_FOUND)
     
+    @extend_schema(
+        description="Remove a member from the group chat. Only group admins and creator can remove members.",
+        parameters=[
+            OpenApiParameter(
+                name='chat_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='UUID of the group chat'
+            )
+        ],
+        request=RemoveMemberSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Member removed successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "message": "Removed jane_smith from group chat"
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied - not group admin"),
+            404: OpenApiResponse(description="Group chat or user not found")
+        },
+        tags=['Group Management'],
+        examples=[
+            OpenApiExample(
+                "Remove Member",
+                value={
+                    "user_id": 2
+                }
+            )
+        ]
+    )
     def delete(self, request, chat_id):
         """Remove a member from the group chat"""
         try:
@@ -325,6 +787,76 @@ class GroupChatMessagesView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, CanSendGroupMessage]
     pagination_class = StandardResultPagination
     
+    @extend_schema(
+        description="Get messages from a group chat or send a new message. Automatically updates read status for the user.",
+        parameters=[
+            OpenApiParameter(
+                name='chat_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='UUID of the group chat'
+            ),
+            OpenApiParameter(
+                name='since',
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                description='Get messages since this timestamp (ISO format)',
+                required=False
+            )
+        ],
+        request=GroupMessageSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Group messages retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "count": 25,
+                            "results": [
+                                {
+                                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                                    "sender": {
+                                        "id": 1,
+                                        "username": "john_doe",
+                                        "first_name": "John",
+                                        "last_name": "Doe"
+                                    },
+                                    "content": "Welcome everyone to our study group!",
+                                    "created_at": "2024-01-01T10:00:00Z",
+                                    "updated_at": "2024-01-01T10:00:00Z",
+                                    "attachments": []
+                                }
+                            ]
+                        }
+                    )
+                ]
+            ),
+            201: OpenApiResponse(
+                description="Message sent successfully",
+                response=GroupMessageSerializer
+            ),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied - not group member"),
+            404: OpenApiResponse(description="Group chat not found")
+        },
+        tags=['Group Messages'],
+        examples=[
+            OpenApiExample(
+                "Send Text Message",
+                value={
+                    "content": "Hello everyone! How's the project going?"
+                }
+            ),
+            OpenApiExample(
+                "Send Message with Mentions",
+                value={
+                    "content": "Hey @john_doe, can you share those notes we discussed?"
+                }
+            )
+        ]
+    )
     def get_queryset(self):
         chat_id = self.kwargs.get('chat_id')
         try:
@@ -362,6 +894,21 @@ class GroupMessageDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = GroupMessageSerializer
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        description="Get, update, or delete a specific group message. Only group members can access, only sender can modify.",
+        responses={
+            200: OpenApiResponse(
+                description="Group message retrieved/updated successfully",
+                response=GroupMessageSerializer
+            ),
+            204: OpenApiResponse(description="Group message deleted successfully"),
+            400: OpenApiResponse(description="Validation error"),
+            401: OpenApiResponse(description="Authentication required"),
+            403: OpenApiResponse(description="Permission denied - not group member or sender"),
+            404: OpenApiResponse(description="Group message not found")
+        },
+        tags=['Group Messages']
+    )
     def get_object(self):
         obj = super().get_object()
         # Check if user is a member of the group chat
@@ -390,6 +937,66 @@ class NotificationListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     pagination_class = StandardResultPagination
     
+    @extend_schema(
+        description="Get notifications for the authenticated user with filtering and pagination support",
+        parameters=[
+            OpenApiParameter(
+                name='type',
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description='Filter by notification type: message, group_message, group_invite, mention, like, comment, etc.',
+                required=False,
+                enum=['message', 'group_message', 'group_invite', 'mention', 'like', 'comment', 'share', 'follow', 'system']
+            ),
+            OpenApiParameter(
+                name='unread_only',
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description='Show only unread notifications',
+                required=False
+            ),
+            OpenApiParameter(
+                name='since',
+                type=OpenApiTypes.DATETIME,
+                location=OpenApiParameter.QUERY,
+                description='Get notifications since this timestamp',
+                required=False
+            )
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Notifications retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "count": 10,
+                            "results": [
+                                {
+                                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                                    "type": "message",
+                                    "title": "New Message",
+                                    "content": "john_doe sent you a message",
+                                    "actor": {
+                                        "id": 1,
+                                        "username": "john_doe",
+                                        "first_name": "John",
+                                        "last_name": "Doe"
+                                    },
+                                    "is_read": False,
+                                    "read_at": None,
+                                    "created_at": "2024-01-01T10:30:00Z",
+                                    "target_url": "/api/v1/messaging/messages/msg-123/"
+                                }
+                            ]
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Notifications']
+    )
     def get_queryset(self):
         user = self.request.user
         notification_type = self.request.query_params.get('type')
@@ -471,6 +1078,38 @@ class UnreadCountView(APIView):
     """
     permission_classes = [IsAuthenticated]
     
+    @extend_schema(
+        description="Get comprehensive unread counts for messages, notifications, and group chats for real-time UI updates",
+        responses={
+            200: OpenApiResponse(
+                description="Unread counts retrieved successfully",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "success": True,
+                            "data": {
+                                "unread_messages": 5,
+                                "unread_notifications": 3,
+                                "group_unread": {
+                                    "123e4567-e89b-12d3-a456-426614174000": 2,
+                                    "456e7890-e89b-12d3-a456-426614174001": 7
+                                },
+                                "total_unread": 17,
+                                "breakdown": {
+                                    "direct_messages": 5,
+                                    "group_messages": 9,
+                                    "notifications": 3
+                                }
+                            }
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description="Authentication required")
+        },
+        tags=['Messaging Utilities']
+    )
     def get(self, request):
         user = request.user
         
@@ -494,6 +1133,60 @@ class UnreadCountView(APIView):
         })
 
 
+@extend_schema(
+    description="Search for users to start conversations or add to groups. Supports fuzzy search across username, name, and email.",
+    parameters=[
+        OpenApiParameter(
+            name='q',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            description='Search query (minimum 2 characters)',
+            required=True
+        ),
+        OpenApiParameter(
+            name='limit',
+            type=OpenApiTypes.INT,
+            location=OpenApiParameter.QUERY,
+            description='Maximum number of results (default: 10, max: 50)',
+            required=False
+        ),
+        OpenApiParameter(
+            name='exclude_groups',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            description='Comma-separated group IDs to exclude users who are already members',
+            required=False
+        )
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Users found successfully",
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "data": [
+                            {
+                                "id": 2,
+                                "username": "jane_smith",
+                                "first_name": "Jane",
+                                "last_name": "Smith",
+                                "profile_picture": "/media/profiles/jane.jpg",
+                                "is_online": True,
+                                "last_seen": "2024-01-01T10:25:00Z",
+                                "mutual_connections": 5
+                            }
+                        ]
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(description="Search query too short or invalid"),
+        401: OpenApiResponse(description="Authentication required")
+    },
+    tags=['Messaging Utilities']
+)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_users(request):
@@ -524,6 +1217,61 @@ def search_users(request):
     })
 
 
+@extend_schema(
+    description="Join a public group chat. Private groups require invitation from admins.",
+    parameters=[
+        OpenApiParameter(
+            name='chat_id',
+            type=OpenApiTypes.UUID,
+            location=OpenApiParameter.PATH,
+            description='UUID of the group chat to join'
+        )
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Successfully joined group chat",
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "message": "Successfully joined CS Study Group",
+                        "member": {
+                            "user": {
+                                "id": 1,
+                                "username": "john_doe"
+                            },
+                            "is_admin": False,
+                            "joined_at": "2024-01-01T10:30:00Z"
+                        }
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description="Cannot join group (private, full, or already member)",
+            examples=[
+                OpenApiExample(
+                    "Private Group",
+                    value={
+                        "success": False,
+                        "error": "This is a private group chat"
+                    }
+                ),
+                OpenApiExample(
+                    "Group Full",
+                    value={
+                        "success": False,
+                        "error": "Group chat is full"
+                    }
+                )
+            ]
+        ),
+        401: OpenApiResponse(description="Authentication required"),
+        404: OpenApiResponse(description="Group chat not found")
+    },
+    tags=['Group Management']
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def join_group_chat(request, chat_id):
@@ -578,6 +1326,46 @@ def join_group_chat(request, chat_id):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
+@extend_schema(
+    description="Leave a group chat. Users can leave any group they are members of.",
+    parameters=[
+        OpenApiParameter(
+            name='chat_id',
+            type=OpenApiTypes.UUID,
+            location=OpenApiParameter.PATH,
+            description='UUID of the group chat to leave'
+        )
+    ],
+    responses={
+        200: OpenApiResponse(
+            description="Successfully left group chat",
+            examples=[
+                OpenApiExample(
+                    "Success",
+                    value={
+                        "success": True,
+                        "message": "Successfully left CS Study Group"
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description="Not a member of this group",
+            examples=[
+                OpenApiExample(
+                    "Not Member",
+                    value={
+                        "success": False,
+                        "error": "You are not a member of this group"
+                    }
+                )
+            ]
+        ),
+        401: OpenApiResponse(description="Authentication required"),
+        404: OpenApiResponse(description="Group chat not found")
+    },
+    tags=['Group Management']
+)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def leave_group_chat(request, chat_id):
