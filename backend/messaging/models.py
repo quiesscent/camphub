@@ -206,7 +206,21 @@ class GroupChat(models.Model):
     
     def is_member(self, user):
         """Check if user is an active member"""
-        return self.group_members.filter(user=user, is_active=True).exists()
+        # Add logging for debugging if needed
+        membership_exists = self.group_members.filter(user=user, is_active=True).exists()
+        
+        # Also check if user is the creator (should always be a member)
+        if not membership_exists and self.creator == user:
+            # Creator should always be a member, so this is a data integrity issue
+            # Auto-fix by creating the membership
+            GroupChatMember.objects.get_or_create(
+                chat=self,
+                user=user,
+                defaults={'is_admin': True, 'is_active': True}
+            )
+            return True
+            
+        return membership_exists
     
     def is_admin(self, user):
         """Check if user is an admin"""
@@ -326,8 +340,13 @@ class GroupMessage(models.Model):
     
     def clean(self):
         """Validate that sender is a member of the group chat"""
+        if not self.sender or not self.chat:
+            return  # Skip validation if not enough data yet
+        
         if not self.chat.is_member(self.sender):
-            raise ValidationError("User is not a member of this group chat")
+            raise ValidationError({
+                '__all__': ["User is not a member of this group chat"]
+            })
     
     def save(self, *args, **kwargs):
         self.full_clean()

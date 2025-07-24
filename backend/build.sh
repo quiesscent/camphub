@@ -17,7 +17,9 @@ echo "Running database migrations..."
 python manage.py makemigrations users academic community messaging content
 python manage.py migrate --noinput
 
-python manage.py populate_db
+# Populate database with test data (with --purge option to clear old data first)
+echo "Populating database with test data..."
+python manage.py populate_db --purge
 
 # Collect static files
 echo "Collecting static files..."
