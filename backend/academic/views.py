@@ -7,6 +7,9 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count, Prefetch
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.openapi import OpenApiParameter, OpenApiResponse, OpenApiExample
+from drf_spectacular import openapi
 from users.views import api_response
 from .models import Course, CourseEnrollment, StudyGroup, StudyGroupMember
 from .serializers import (
@@ -21,6 +24,92 @@ from .serializers import (
 User = get_user_model()
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id='list_courses',
+        summary='List all courses',
+        description='''
+        Retrieve a paginated list of courses with filtering and search capabilities.
+        Users can filter by semester, year, instructor, and search by course code or name.
+        Only shows courses from user's institution if they have a profile.
+        ''',
+        parameters=[
+            OpenApiParameter(
+                name='search',
+                description='Search term for filtering courses by code, name, or instructor',
+                required=False,
+                type=str,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='semester',
+                description='Filter by academic semester',
+                required=False,
+                type=str,
+                enum=['fall', 'spring', 'summer', 'winter'],
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='year',
+                description='Filter by academic year',
+                required=False,
+                type=int,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='instructor',
+                description='Filter by instructor ID',
+                required=False,
+                type=int,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='enrollment_open',
+                description='Filter by enrollment status',
+                required=False,
+                type=bool,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='my_courses',
+                description='Show only courses user is enrolled in',
+                required=False,
+                type=bool,
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=CourseListSerializer(many=True),
+                description='Successfully retrieved courses',
+                examples=[
+                    OpenApiExample(
+                        'Success Response',
+                        value={
+                            'success': True,
+                            'data': [
+                                {
+                                    'id': 1,
+                                    'course_code': 'CS101',
+                                    'course_name': 'Introduction to Computer Science',
+                                    'semester': 'fall',
+                                    'year': 2024,
+                                    'instructor_name': 'Dr. John Smith',
+                                    'enrollment_count': 25,
+                                    'study_groups_count': 3,
+                                    'is_enrolled': False
+                                }
+                            ],
+                            'message': 'Courses retrieved successfully'
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description='Authentication required'),
+        },
+        tags=['Academic - Courses']
+    )
+)
 class CourseListView(generics.ListAPIView):
     """List courses with filtering and search capabilities"""
     serializer_class = CourseListSerializer
@@ -88,6 +177,51 @@ class CourseListView(generics.ListAPIView):
         return api_response(True, serializer.data, "Courses retrieved successfully")
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id='get_course_detail',
+        summary='Get course details',
+        description='''
+        Retrieve detailed information about a specific course including enrollment count,
+        study groups, and user's enrollment status.
+        ''',
+        responses={
+            200: OpenApiResponse(
+                response=CourseDetailSerializer,
+                description='Successfully retrieved course details',
+                examples=[
+                    OpenApiExample(
+                        'Success Response',
+                        value={
+                            'success': True,
+                            'data': {
+                                'id': 1,
+                                'course_code': 'CS101',
+                                'course_name': 'Introduction to Computer Science',
+                                'description': 'Basic computer science concepts',
+                                'semester': 'fall',
+                                'year': 2024,
+                                'instructor': {
+                                    'id': 1,
+                                    'name': 'Dr. John Smith',
+                                    'email': 'john.smith@university.edu'
+                                },
+                                'enrollment_count': 25,
+                                'max_enrollment': 50,
+                                'is_enrolled': False,
+                                'enrollment_open': True
+                            },
+                            'message': 'Course details retrieved successfully'
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description='Authentication required'),
+            404: OpenApiResponse(description='Course not found'),
+        },
+        tags=['Academic - Courses']
+    )
+)
 class CourseDetailView(generics.RetrieveAPIView):
     """Retrieve detailed course information"""
     serializer_class = CourseDetailSerializer
@@ -110,6 +244,71 @@ class CourseDetailView(generics.RetrieveAPIView):
         return api_response(True, serializer.data, "Course details retrieved successfully")
 
 
+@extend_schema_view(
+    post=extend_schema(
+        operation_id='create_course',
+        summary='Create a new course',
+        description='''
+        Create a new course. Only faculty and staff members can create courses.
+        The course will be automatically assigned to the user's institution.
+        ''',
+        request=CourseCreateSerializer,
+        responses={
+            201: OpenApiResponse(
+                response=CourseDetailSerializer,
+                description='Course created successfully',
+                examples=[
+                    OpenApiExample(
+                        'Success Response',
+                        value={
+                            'success': True,
+                            'data': {
+                                'id': 1,
+                                'course_code': 'CS101',
+                                'course_name': 'Introduction to Computer Science',
+                                'semester': 'fall',
+                                'year': 2024,
+                                'instructor_id': 1,
+                                'institution_id': 1
+                            },
+                            'message': 'Course created successfully'
+                        }
+                    )
+                ]
+            ),
+            400: OpenApiResponse(
+                description='Validation error',
+                examples=[
+                    OpenApiExample(
+                        'Validation Error',
+                        value={
+                            'success': False,
+                            'errors': {
+                                'course_code': ['This field is required.'],
+                                'course_name': ['Ensure this field has at most 200 characters.']
+                            },
+                            'message': 'Course creation failed'
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description='Authentication required'),
+            403: OpenApiResponse(
+                description='Permission denied - only faculty and staff can create courses',
+                examples=[
+                    OpenApiExample(
+                        'Permission Denied',
+                        value={
+                            'success': False,
+                            'message': 'Only faculty and staff can create courses'
+                        }
+                    )
+                ]
+            ),
+        },
+        tags=['Academic - Courses']
+    )
+)
 class CourseCreateView(generics.CreateAPIView):
     """Create new courses (faculty/staff only)"""
     serializer_class = CourseCreateSerializer
@@ -144,6 +343,52 @@ class CourseCreateView(generics.CreateAPIView):
         )
 
 
+@extend_schema(
+    operation_id='enroll_in_course',
+    summary='Enroll in a course',
+    description='''
+    Enroll the authenticated user in a specific course.
+    Users cannot enroll in the same course twice.
+    ''',
+    request=EnrollInCourseSerializer,
+    responses={
+        200: OpenApiResponse(
+            response=CourseEnrollmentSerializer,
+            description='Successfully enrolled in course',
+            examples=[
+                OpenApiExample(
+                    'Success Response',
+                    value={
+                        'success': True,
+                        'data': {
+                            'id': 1,
+                            'user_id': 1,
+                            'course_id': 1,
+                            'role': 'student',
+                            'enrollment_date': '2024-01-15T10:30:00Z'
+                        },
+                        'message': 'Successfully enrolled in course'
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description='Bad request - already enrolled or course full',
+            examples=[
+                OpenApiExample(
+                    'Already Enrolled',
+                    value={
+                        'success': False,
+                        'message': 'Already enrolled in this course'
+                    }
+                )
+            ]
+        ),
+        401: OpenApiResponse(description='Authentication required'),
+        404: OpenApiResponse(description='Course not found'),
+    },
+    tags=['Academic - Enrollments']
+)
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def enroll_in_course(request, course_id):
@@ -186,6 +431,43 @@ def enroll_in_course(request, course_id):
     )
 
 
+@extend_schema(
+    operation_id='unenroll_from_course',
+    summary='Unenroll from a course',
+    description='''
+    Remove the authenticated user's enrollment from a specific course.
+    Instructors cannot unenroll from their own courses.
+    ''',
+    responses={
+        200: OpenApiResponse(
+            description='Successfully unenrolled from course',
+            examples=[
+                OpenApiExample(
+                    'Success Response',
+                    value={
+                        'success': True,
+                        'message': 'Successfully unenrolled from course'
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description='Bad request - instructors cannot unenroll',
+            examples=[
+                OpenApiExample(
+                    'Instructor Error',
+                    value={
+                        'success': False,
+                        'message': 'Instructors cannot unenroll from their own courses'
+                    }
+                )
+            ]
+        ),
+        401: OpenApiResponse(description='Authentication required'),
+        404: OpenApiResponse(description='Course or enrollment not found'),
+    },
+    tags=['Academic - Enrollments']
+)
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def unenroll_from_course(request, course_id):
@@ -212,6 +494,47 @@ def unenroll_from_course(request, course_id):
     return api_response(True, None, "Successfully unenrolled from course")
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id='list_course_enrollments',
+        summary='List course enrollments',
+        description='''
+        List all enrollments for a specific course.
+        Only instructors and TAs can view course enrollments.
+        ''',
+        responses={
+            200: OpenApiResponse(
+                response=CourseEnrollmentSerializer(many=True),
+                description='Successfully retrieved enrollments',
+                examples=[
+                    OpenApiExample(
+                        'Success Response',
+                        value={
+                            'success': True,
+                            'data': [
+                                {
+                                    'id': 1,
+                                    'user': {
+                                        'id': 1,
+                                        'name': 'John Doe',
+                                        'email': 'john@university.edu'
+                                    },
+                                    'role': 'student',
+                                    'enrollment_date': '2024-01-15T10:30:00Z'
+                                }
+                            ],
+                            'message': 'Enrollments retrieved successfully'
+                        }
+                    )
+                ]
+            ),
+            401: OpenApiResponse(description='Authentication required'),
+            403: OpenApiResponse(description='Permission denied - instructors/TAs only'),
+            404: OpenApiResponse(description='Course not found'),
+        },
+        tags=['Academic - Enrollments']
+    )
+)
 class CourseEnrollmentsView(generics.ListAPIView):
     """List enrollments for a course (instructors/TAs only)"""
     serializer_class = CourseEnrollmentSerializer
@@ -245,6 +568,62 @@ class CourseEnrollmentsView(generics.ListAPIView):
         return api_response(True, serializer.data, "Enrollments retrieved successfully")
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id='list_study_groups',
+        summary='List study groups',
+        description='''
+        Retrieve a paginated list of study groups with filtering capabilities.
+        Users can filter by course, privacy level, and search by name or description.
+        ''',
+        parameters=[
+            OpenApiParameter(
+                name='search',
+                description='Search term for filtering groups by name or description',
+                required=False,
+                type=str,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='course',
+                description='Filter by course ID',
+                required=False,
+                type=int,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='is_private',
+                description='Filter by privacy level',
+                required=False,
+                type=bool,
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='meeting_frequency',
+                description='Filter by meeting frequency',
+                required=False,
+                type=str,
+                enum=['weekly', 'biweekly', 'monthly', 'irregular'],
+                location=OpenApiParameter.QUERY,
+            ),
+            OpenApiParameter(
+                name='my_groups',
+                description='Show only groups user is a member of',
+                required=False,
+                type=bool,
+                location=OpenApiParameter.QUERY,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=StudyGroupListSerializer(many=True),
+                description='Successfully retrieved study groups',
+            ),
+            401: OpenApiResponse(description='Authentication required'),
+        },
+        tags=['Academic - Study Groups']
+    )
+)
 class StudyGroupListView(generics.ListAPIView):
     """List study groups with filtering capabilities"""
     serializer_class = StudyGroupListSerializer
@@ -308,6 +687,26 @@ class StudyGroupListView(generics.ListAPIView):
         return api_response(True, serializer.data, "Study groups retrieved successfully")
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id='get_study_group_detail',
+        summary='Get study group details',
+        description='''
+        Retrieve detailed information about a specific study group.
+        Private groups can only be viewed by members.
+        ''',
+        responses={
+            200: OpenApiResponse(
+                response=StudyGroupDetailSerializer,
+                description='Successfully retrieved study group details',
+            ),
+            401: OpenApiResponse(description='Authentication required'),
+            403: OpenApiResponse(description='Access denied to private study group'),
+            404: OpenApiResponse(description='Study group not found'),
+        },
+        tags=['Academic - Study Groups']
+    )
+)
 class StudyGroupDetailView(generics.RetrieveAPIView):
     """Retrieve detailed study group information"""
     serializer_class = StudyGroupDetailSerializer
@@ -338,6 +737,26 @@ class StudyGroupDetailView(generics.RetrieveAPIView):
         return api_response(True, serializer.data, "Study group details retrieved successfully")
 
 
+@extend_schema_view(
+    post=extend_schema(
+        operation_id='create_study_group',
+        summary='Create a new study group',
+        description='''
+        Create a new study group. The creator automatically becomes a moderator.
+        If associated with a course, the user must be enrolled in that course.
+        ''',
+        request=StudyGroupCreateSerializer,
+        responses={
+            201: OpenApiResponse(
+                response=StudyGroupDetailSerializer,
+                description='Study group created successfully',
+            ),
+            400: OpenApiResponse(description='Validation error'),
+            401: OpenApiResponse(description='Authentication required'),
+        },
+        tags=['Academic - Study Groups']
+    )
+)
 class StudyGroupCreateView(generics.CreateAPIView):
     """Create new study groups"""
     serializer_class = StudyGroupCreateSerializer
@@ -360,6 +779,25 @@ class StudyGroupCreateView(generics.CreateAPIView):
         )
 
 
+@extend_schema(
+    operation_id='join_study_group',
+    summary='Join a study group',
+    description='''
+    Join a study group as a member. Users cannot join the same group twice.
+    Private groups may require approval (future feature).
+    ''',
+    request=JoinStudyGroupSerializer,
+    responses={
+        200: OpenApiResponse(
+            response=StudyGroupMemberSerializer,
+            description='Successfully joined study group',
+        ),
+        400: OpenApiResponse(description='Already a member or group is full'),
+        401: OpenApiResponse(description='Authentication required'),
+        404: OpenApiResponse(description='Study group not found'),
+    },
+    tags=['Academic - Study Groups']
+)
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def join_study_group(request, group_id):
@@ -402,6 +840,43 @@ def join_study_group(request, group_id):
     )
 
 
+@extend_schema(
+    operation_id='leave_study_group',
+    summary='Leave a study group',
+    description='''
+    Leave a study group. Group creators cannot leave if they are the only moderator.
+    They must promote another member to moderator first.
+    ''',
+    responses={
+        200: OpenApiResponse(
+            description='Successfully left study group',
+            examples=[
+                OpenApiExample(
+                    'Success Response',
+                    value={
+                        'success': True,
+                        'message': 'Successfully left study group'
+                    }
+                )
+            ]
+        ),
+        400: OpenApiResponse(
+            description='Cannot leave - only moderator remaining',
+            examples=[
+                OpenApiExample(
+                    'Only Moderator Error',
+                    value={
+                        'success': False,
+                        'message': 'Cannot leave group as the only moderator. Promote another member first.'
+                    }
+                )
+            ]
+        ),
+        401: OpenApiResponse(description='Authentication required'),
+        404: OpenApiResponse(description='Study group or membership not found'),
+    },
+    tags=['Academic - Study Groups']
+)
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def leave_study_group(request, group_id):
@@ -435,6 +910,25 @@ def leave_study_group(request, group_id):
     return api_response(True, None, "Successfully left study group")
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id='list_study_group_members',
+        summary='List study group members',
+        description='''
+        List all members of a study group.
+        Private groups can only be viewed by members.
+        ''',
+        responses={
+            200: OpenApiResponse(
+                response=StudyGroupMemberSerializer(many=True),
+                description='Successfully retrieved study group members',
+            ),
+            401: OpenApiResponse(description='Authentication required'),
+            403: OpenApiResponse(description='Access denied or study group not found'),
+        },
+        tags=['Academic - Study Groups']
+    )
+)
 class StudyGroupMembersView(generics.ListAPIView):
     """List members of a study group"""
     serializer_class = StudyGroupMemberSerializer
@@ -466,6 +960,25 @@ class StudyGroupMembersView(generics.ListAPIView):
         return api_response(True, serializer.data, "Study group members retrieved successfully")
 
 
+@extend_schema_view(
+    get=extend_schema(
+        operation_id='list_course_study_groups',
+        summary='List study groups for a course',
+        description='''
+        List all study groups associated with a specific course.
+        User must be enrolled in the course to view its study groups.
+        ''',
+        responses={
+            200: OpenApiResponse(
+                response=StudyGroupListSerializer(many=True),
+                description='Successfully retrieved course study groups',
+            ),
+            401: OpenApiResponse(description='Authentication required'),
+            403: OpenApiResponse(description='Course not found or access denied'),
+        },
+        tags=['Academic - Study Groups']
+    )
+)
 class CourseStudyGroupsView(generics.ListAPIView):
     """List study groups for a specific course"""
     serializer_class = StudyGroupListSerializer
@@ -499,6 +1012,50 @@ class CourseStudyGroupsView(generics.ListAPIView):
         return api_response(True, serializer.data, "Course study groups retrieved successfully")
 
 
+@extend_schema(
+    operation_id='get_academic_dashboard',
+    summary='Get academic dashboard data',
+    description='''
+    Retrieve comprehensive academic dashboard data including:
+    - Course statistics (enrolled, teaching, total)
+    - Study group statistics (member of, moderating)
+    - Recent courses and study groups
+    - Upcoming meetings and deadlines
+    ''',
+    responses={
+        200: OpenApiResponse(
+            response=AcademicDashboardSerializer,
+            description='Successfully retrieved dashboard data',
+            examples=[
+                OpenApiExample(
+                    'Success Response',
+                    value={
+                        'success': True,
+                        'data': {
+                            'courses': {
+                                'total_courses': 45,
+                                'enrolled_courses': 4,
+                                'teaching_courses': 0,
+                                'current_semester_courses': 4
+                            },
+                            'study_groups': {
+                                'total_groups': 23,
+                                'user_groups': 2,
+                                'user_moderated_groups': 1
+                            },
+                            'recent_courses': [],
+                            'recent_study_groups': [],
+                            'upcoming_meetings': []
+                        },
+                        'message': 'Dashboard data retrieved successfully'
+                    }
+                )
+            ]
+        ),
+        401: OpenApiResponse(description='Authentication required'),
+    },
+    tags=['Academic - Dashboard']
+)
 class AcademicDashboardView(APIView):
     """Academic dashboard with statistics and recent items"""
     permission_classes = [permissions.IsAuthenticated]
