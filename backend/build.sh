@@ -17,6 +17,8 @@ echo "Running database migrations..."
 python manage.py makemigrations users academic community messaging content
 python manage.py migrate --noinput
 
+python manage.py populate_db
+
 # Collect static files
 echo "Collecting static files..."
 python manage.py collectstatic --noinput
